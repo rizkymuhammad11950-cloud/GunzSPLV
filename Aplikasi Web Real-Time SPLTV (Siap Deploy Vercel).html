@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full bg-slate-950 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pembelajaran Matematika SPLTV Raya Mart - Pak Gunawan</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Canvas Confetti CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- QRCodeJS CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- HTML5-QRCode JS CDN for Camera Scanning -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <!-- MQTT/WebSockets Client for Zero-Config Real-Time Cloud Sync -->
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        canvas: { sidebar: '#1e293b', nav: '#0f172a', brand: '#0284c7', accent: '#38bdf8' }
+                    },
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        receipt: ['"Space Mono"', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        .receipt-paper { background: #faf8f5; color: #1e293b; font-family: 'Space Mono', monospace; }
+        .podium-1 { background: linear-gradient(180deg, #f59e0b 0%, #b45309 100%); }
+        .podium-2 { background: linear-gradient(180deg, #94a3b8 0%, #475569 100%); }
+        .podium-3 { background: linear-gradient(180deg, #d97706 0%, #78350f 100%); }
+    </style>
+</head>
+<body class="h-full font-sans antialiased bg-slate-950 text-slate-100 flex flex-col overflow-hidden selection:bg-sky-500 selection:text-white">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-slate-900 border-b border-slate-800 h-16 flex items-center justify-between px-4 sm:px-6 z-40 flex-shrink-0">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-blue-600 flex items-center justify-center font-black text-white text-lg shadow-lg shadow-sky-500/20">
+                <i class="fa-solid fa-calculator"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-base leading-tight text-white flex items-center gap-2">
+                    RAYA MART <span class="text-[10px] px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20">Pembelajaran Pak Gunawan</span>
+                </h1>
+                <p class="text-xs text-slate-400 hidden sm:block">Aplikasi Tantangan SPLTV - SMK Negeri 1 Sampit</p>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-3">
+            <!-- Global 45-Min Timer Display -->
+            <div class="bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-xl flex items-center gap-2">
+                <i class="fa-solid fa-clock text-amber-400 text-xs animate-pulse"></i>
+                <div>
+                    <span class="text-[8px] text-slate-400 font-bold uppercase block leading-none">Timer Sesi</span>
+                    <span id="countdownDisplay" class="font-mono text-xs font-extrabold text-amber-400">45:00</span>
+                </div>
+            </div>
+
+            <!-- Cloud Room Code -->
+            <div class="hidden md:flex items-center gap-2 bg-slate-950 border border-slate-800 px-3 py-1 rounded-xl text-xs">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" id="roomStatusDot"></span>
+                <span class="text-[10px] text-slate-400 font-bold">Ruang:</span>
+                <input type="text" id="roomCodeInput" onchange="window.changeRoomCode(this.value)" value="SPLTV-GUNAWAN" class="bg-transparent font-mono font-bold text-sky-400 w-28 text-xs focus:outline-none uppercase cursor-pointer" title="Klik untuk merubah Kode Ruang Kelas">
+            </div>
+
+            <!-- QR Code Access Trigger Button -->
+            <button onclick="window.openQrModal()" class="px-3 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-lg shadow-sky-600/20">
+                <i class="fa-solid fa-qrcode"></i>
+                <span class="hidden sm:inline">QR Akses</span>
+            </button>
+
+            <!-- Role Switcher -->
+            <div class="bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1 flex items-center gap-2">
+                <i class="fa-solid fa-user-gear text-sky-400 text-xs"></i>
+                <select id="roleSelector" onchange="window.switchUserRole(this.value)" class="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer">
+                    <option value="teacher" class="bg-slate-900 text-white">Peran: Pak Gunawan (Guru)</option>
+                    <option value="student_1" class="bg-slate-900 text-white">Peran: Siswa (Kelompok 1)</option>
+                    <option value="student_2" class="bg-slate-900 text-white">Peran: Siswa (Kelompok 2)</option>
+                    <option value="student_3" class="bg-slate-900 text-white">Peran: Siswa (Kelompok 3)</option>
+                    <option value="student_4" class="bg-slate-900 text-white">Peran: Siswa (Kelompok 4)</option>
+                    <option value="student_5" class="bg-slate-900 text-white">Peran: Siswa (Kelompok 5)</option>
+                    <option value="student_6" class="bg-slate-900 text-white">Peran: Siswa (Kelompok 6)</option>
+                    <option value="student_7" class="bg-slate-900 text-white">Peran: Siswa (Kelompok 7)</option>
+                    <option value="student_8" class="bg-slate-900 text-white">Peran: Siswa (Kelompok 8)</option>
+                    <option value="student_9" class="bg-slate-900 text-white">Peran: Siswa (Kelompok 9)</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex-1 flex overflow-hidden">
+
+        <!-- Global Left Sidebar -->
+        <aside class="w-16 bg-slate-900 border-r border-slate-800 flex flex-col items-center py-4 space-y-6 flex-shrink-0 z-30">
+            <a href="#" onclick="window.switchTab('board')" class="text-center group" title="Papan Kelompok & Input">
+                <div id="navIcon-board" class="w-10 h-10 rounded-xl bg-sky-600 text-white flex items-center justify-center text-lg transition shadow-lg shadow-sky-600/30">
+                    <i class="fa-solid fa-gamepad"></i>
+                </div>
+                <span class="text-[9px] text-slate-400 group-hover:text-white block mt-1 font-bold">Board</span>
+            </a>
+
+            <a href="#" onclick="window.switchTab('leaderboard')" class="text-center group" title="Leaderboard Real-Time">
+                <div id="navIcon-leaderboard" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 group-hover:text-white flex items-center justify-center text-lg transition">
+                    <i class="fa-solid fa-trophy"></i>
+                </div>
+                <span class="text-[9px] text-slate-400 group-hover:text-white block mt-1 font-bold">Klasemen</span>
+            </a>
+
+            <a href="#" onclick="window.switchTab('receipts')" class="text-center group" title="Galeri 10 Struk">
+                <div id="navIcon-receipts" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 group-hover:text-white flex items-center justify-center text-lg transition">
+                    <i class="fa-solid fa-receipt"></i>
+                </div>
+                <span class="text-[9px] text-slate-400 group-hover:text-white block mt-1 font-bold">Struk</span>
+            </a>
+
+            <a href="#" onclick="window.switchTab('gradebook')" class="text-center group" title="Gradebook & Rubrik">
+                <div id="navIcon-gradebook" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 group-hover:text-white flex items-center justify-center text-lg transition">
+                    <i class="fa-solid fa-clipboard-check"></i>
+                </div>
+                <span class="text-[9px] text-slate-400 group-hover:text-white block mt-1 font-bold">Rubrik</span>
+            </a>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 overflow-y-auto bg-slate-950 p-4 sm:p-6 lg:p-8 space-y-6">
+
+            <!-- Banner Warning Notification -->
+            <div id="sessionBannerAlert" class="hidden p-4 rounded-2xl border flex items-center justify-between text-xs transition-all">
+                <div class="flex items-center gap-3">
+                    <i id="sessionAlertIcon" class="fa-solid fa-triangle-exclamation text-xl"></i>
+                    <div>
+                        <span class="font-bold text-sm block" id="sessionAlertTitle">Sesi Pembelajaran Belum Dimulai</span>
+                        <span id="sessionAlertDesc">Pak Gunawan belum mengaktifkan waktu 45 menit. Penginputan jawaban terkunci sementara.</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 1: BOARD TANTANGAN & INPUT SISWA -->
+            <section id="tab-board" class="space-y-6">
+                
+                <!-- Teacher Session Controller Panel -->
+                <div id="teacherControlCard" class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div>
+                        <span class="text-[10px] font-bold text-sky-400 uppercase tracking-widest block">Panel Kontrol Pak Gunawan</span>
+                        <h3 class="text-base font-extrabold text-white">Pengendali Waktu & Sesi Klasikal (45 Menit)</h3>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <button id="startSessionBtn" onclick="window.toggleSessionStart()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-600/20 transition flex items-center gap-2">
+                            <i class="fa-solid fa-play"></i>
+                            <span>Mulai Sesi (45 Menit)</span>
+                        </button>
+                        <button id="endSessionBtn" onclick="window.initiate2StepEndSession()" class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-rose-600/20 transition flex items-center gap-2 hidden">
+                            <i class="fa-solid fa-flag-checkered"></i>
+                            <span>Akhiri Sesi Pembelajaran</span>
+                        </button>
+                        <button onclick="window.resetAllData()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs rounded-xl border border-slate-700 transition">
+                            <i class="fa-solid fa-rotate-left mr-1"></i> Reset Data
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Active Group Info & Lives Bar -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+                    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-sky-400 text-xl font-bold">
+                                <i class="fa-solid fa-users"></i>
+                            </div>
+                            <div>
+                                <span class="text-xs font-bold text-slate-400 block" id="activeGroupDisplayLabel">Papan Kerja Kelompok</span>
+                                <h2 class="text-xl font-extrabold text-white" id="activeGroupNameTitle">Kelompok 1</h2>
+                            </div>
+                        </div>
+
+                        <!-- 4 Members Inputs -->
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 flex-1 max-w-2xl" id="memberInputsContainer">
+                            <input type="text" id="member0" onchange="window.saveGroupMembers()" placeholder="Nama Ketua..." class="bg-slate-950 border border-slate-800 focus:border-sky-500 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-600 focus:outline-none">
+                            <input type="text" id="member1" onchange="window.saveGroupMembers()" placeholder="Anggota 1..." class="bg-slate-950 border border-slate-800 focus:border-sky-500 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-600 focus:outline-none">
+                            <input type="text" id="member2" onchange="window.saveGroupMembers()" placeholder="Anggota 2..." class="bg-slate-950 border border-slate-800 focus:border-sky-500 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-600 focus:outline-none">
+                            <input type="text" id="member3" onchange="window.saveGroupMembers()" placeholder="Anggota 3..." class="bg-slate-950 border border-slate-800 focus:border-sky-500 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-600 focus:outline-none">
+                        </div>
+
+                        <!-- Lives & Progress -->
+                        <div class="flex items-center gap-6">
+                            <!-- Hearts -->
+                            <div class="text-center">
+                                <span class="text-[10px] text-slate-400 uppercase font-bold block mb-1">Sisa Nyawa</span>
+                                <div class="flex items-center gap-1 text-xl" id="livesHeartsDisplay"></div>
+                            </div>
+                            <!-- Progress -->
+                            <div class="flex items-center gap-3">
+                                <div class="relative w-12 h-12 flex items-center justify-center">
+                                    <svg class="w-12 h-12 transform -rotate-90" viewBox="0 0 36 36">
+                                        <path class="text-slate-800" stroke-width="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                        <path id="progressCircle" class="text-sky-400 transition-all duration-500" stroke-dasharray="0, 100" stroke-width="3" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                    </svg>
+                                    <span id="progressPercentText" class="absolute font-bold text-xs text-white">0%</span>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] text-slate-400 block font-bold">Produk Benar</span>
+                                    <span class="text-lg font-black text-white"><span id="solvedCountText">0</span> / 10</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 10 Products Input Grid -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                    <h3 class="font-bold text-white text-base mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-boxes-stacked text-sky-400"></i>
+                        Input Hasil Perhitungan Harga 10 Barang Raya Mart
+                    </h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4" id="productsGrid"></div>
+                </div>
+            </section>
+
+            <!-- TAB 2: LEADERBOARD KLASEMEN REAL-TIME -->
+            <section id="tab-leaderboard" class="space-y-6 hidden">
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                        <div>
+                            <h2 class="text-xl font-extrabold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-trophy text-amber-400"></i>
+                                Klasemen Real-Time Penginputan Benar
+                            </h2>
+                            <p class="text-xs text-slate-400 mt-1">Diurutkan otomatis berdasarkan jumlah produk benar terbanyak dan kecepatan.</p>
+                        </div>
+                        <button onclick="window.triggerTop3PodiumModal()" class="px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-bold rounded-xl flex items-center gap-2 transition self-start md:self-auto">
+                            <i class="fa-solid fa-crown"></i>
+                            <span>Tampilkan Podium Top 3</span>
+                        </button>
+                    </div>
+
+                    <!-- Legend Key -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-3.5 mb-5">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Keterangan Kode Simbol Produk:</span>
+                        <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs" id="productLegendContainer"></div>
+                    </div>
+
+                    <!-- Table -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="border-b border-slate-800 text-slate-400 uppercase font-semibold">
+                                    <th class="pb-3 w-16">Peringkat</th>
+                                    <th class="pb-3">Kelompok</th>
+                                    <th class="pb-3 text-center">Sisa Nyawa</th>
+                                    <th class="pb-3 text-center">Produk Benar</th>
+                                    <th class="pb-3 text-center">Progres (%)</th>
+                                    <th class="pb-3">Status 10 Produk</th>
+                                </tr>
+                            </thead>
+                            <tbody id="leaderboardTableBody" class="divide-y divide-slate-800/60 font-medium"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 3: GALERI 10 STRUK -->
+            <section id="tab-receipts" class="space-y-6 hidden">
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                    <h2 class="text-xl font-extrabold text-white mb-2">Galeri 10 Struk Belanja Raya Mart</h2>
+                    <p class="text-xs text-slate-400">Pilih nomor struk di bawah ini untuk menganalisis data belanjaan fisik.</p>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-5 gap-3" id="receiptButtonsGrid"></div>
+                <div class="flex justify-center">
+                    <div id="receiptDisplayPaper" class="receipt-paper w-full max-w-md p-6 rounded-2xl shadow-2xl border border-amber-200"></div>
+                </div>
+            </section>
+
+            <!-- TAB 4: GRADEBOOK & RUBRIK -->
+            <section id="tab-gradebook" class="space-y-6 hidden">
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4 mb-4">
+                        <div>
+                            <h2 class="text-xl font-extrabold text-white">Gradebook & Rubrik Penilaian Komulatif (100 Poin)</h2>
+                            <p class="text-xs text-slate-400 mt-0.5">Pedoman penilaian resmi indikator matematika SPLTV Pembelajaran Pak Gunawan.</p>
+                        </div>
+                        <button id="toggleAnswerKeyBtn" onclick="window.toggleAnswerKeyDrawer()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-sky-400 font-bold text-xs rounded-xl border border-slate-700 transition">
+                            <i class="fa-solid fa-key mr-1"></i> Kunci Jawaban Resmi (Pengajar Only)
+                        </button>
+                    </div>
+
+                    <!-- Hidden Answer Key Drawer -->
+                    <div id="answerKeyDrawer" class="bg-slate-950 border border-sky-500/30 rounded-xl p-4 mb-6 hidden">
+                        <span class="text-xs font-bold text-sky-400 uppercase tracking-wider block mb-2"><i class="fa-solid fa-lock-open mr-1"></i> Kunci Jawaban Resmi Pak Gunawan:</span>
+                        <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs font-mono" id="answerKeyGrid"></div>
+                    </div>
+
+                    <!-- Rubric Table -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="border-b border-slate-800 text-slate-400 uppercase font-semibold">
+                                    <th class="pb-3">Indikator Kinerja Matematika</th>
+                                    <th class="pb-3">Kriteria Keberhasilan</th>
+                                    <th class="pb-3 text-right">Bobot Skor</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800/60 text-slate-300">
+                                <tr>
+                                    <td class="py-3 font-bold text-white">Pemodelan Matematika Awal</td>
+                                    <td class="py-3">Memodelkan Struk 6 s.d. 10 ke bentuk variabel persamaannya secara tepat.</td>
+                                    <td class="py-3 text-right font-bold text-sky-400">10 Poin</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-3 font-bold text-white">Penyederhanaan Konstanta Dasar</td>
+                                    <td class="py-3">Mensubstitusi harga barang lama (Gula, Kopi, Keripik) dari Struk 1-5 secara presisi.</td>
+                                    <td class="py-3 text-right font-bold text-sky-400">10 Poin</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-3 font-bold text-white">Strategi Alur Sekuensial</td>
+                                    <td class="py-3">Mendahulukan penyelesaian SPLDV Struk 9 & 10 sebelum menyentuh SPLTV.</td>
+                                    <td class="py-3 text-right font-bold text-sky-400">10 Poin</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-3 font-bold text-white">Perhitungan SPLDV Sarden & Susu</td>
+                                    <td class="py-3">Menghitung nilai Sarden (Rp12.000) dan Susu UHT (Rp8.000) tanpa kesalahan.</td>
+                                    <td class="py-3 text-right font-bold text-sky-400">15 Poin</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-3 font-bold text-white">Penyelesaian Kompleks SPLTV</td>
+                                    <td class="py-3">Mengeliminasi/mensubstitusi gabungan Struk 6,7,8 untuk Minyak, Air, dan Tisu.</td>
+                                    <td class="py-3 text-right font-bold text-sky-400">35 Poin</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-3 font-bold text-white">Rekapitulasi Akhir & Satuan</td>
+                                    <td class="py-3">Menyajikan 10 harga akhir barang dengan penulisan satuan Rupiah yang rapi.</td>
+                                    <td class="py-3 text-right font-bold text-sky-400">15 Poin</td>
+                                </tr>
+                                <tr class="bg-sky-950/20 font-black text-white">
+                                    <td class="py-3" colspan="2">TOTAL SKOR KOMULATIF MAXIMAL</td>
+                                    <td class="py-3 text-right text-emerald-400">100 POIN</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- MODAL: VERIFY END SESSION PASSCODE 1234 -->
+    <div id="verifyModal" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl">
+            <div id="verifyStep1" class="space-y-4">
+                <div class="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center text-xl font-bold mx-auto">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <div class="text-center">
+                    <h3 class="text-lg font-bold text-white">Konfirmasi Akhiri Sesi</h3>
+                    <p class="text-xs text-slate-400 mt-1">Yakin ingin mengakhiri sesi tantangan pembelajaran ini?</p>
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button onclick="window.closeVerifyModal()" class="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition">Batal</button>
+                    <button onclick="window.goToVerifyStep2()" class="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition">Lanjut &rarr;</button>
+                </div>
+            </div>
+
+            <div id="verifyStep2" class="space-y-4 hidden">
+                <div class="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center text-xl font-bold mx-auto">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <div class="text-center">
+                    <h3 class="text-lg font-bold text-white">Verifikasi Passcode Instruktur</h3>
+                    <p class="text-xs text-slate-400 mt-1">Masukkan Passcode Keamanan Guru (Default: 1234).</p>
+                </div>
+                <div>
+                    <input type="password" id="teacherPasscodeCode" placeholder="Masukkan 1234" class="w-full bg-slate-950 border border-slate-700 focus:border-sky-500 rounded-xl px-3 py-2 text-center text-lg tracking-widest text-white font-bold focus:outline-none">
+                    <p id="passcodeErrorMsg" class="text-[10px] text-rose-400 mt-1 hidden text-center"><i class="fa-solid fa-circle-xmark"></i> Passcode salah! Masukkan 1234.</p>
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button onclick="window.closeVerifyModal()" class="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition">Batal</button>
+                    <button onclick="window.confirmFinalEndSession()" class="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition">Akhiri Sesi</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: PODIUM TOP 3 -->
+    <div id="podiumModal" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl p-6 sm:p-8 shadow-2xl relative flex flex-col items-center">
+            <div class="text-center mb-6">
+                <span class="px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold uppercase tracking-widest inline-block mb-2">
+                    <i class="fa-solid fa-trophy mr-1"></i> Selebrasi Pemenang Tantangan
+                </span>
+                <h2 class="text-2xl sm:text-3xl font-black text-white">PODIUM 3 KELOMPOK TERATAS</h2>
+            </div>
+            <div class="w-full flex items-end justify-center gap-3 sm:gap-6 my-4 min-h-[260px]" id="podiumDisplayContainer"></div>
+            <div class="w-full pt-6 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+                <span>Pembelajaran Pak Gunawan &bull; Matematika SMK</span>
+                <button onclick="window.closePodiumModal()" class="px-5 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl transition">Tutup</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: QR CODE ACCESS -->
+    <div id="qrModal" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg p-6 sm:p-8 shadow-2xl relative flex flex-col items-center">
+            
+            <button onclick="window.closeQrModal()" class="absolute top-4 right-4 w-9 h-9 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <div class="text-center mb-4">
+                <span class="px-3 py-1 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20 text-xs font-bold uppercase tracking-wider inline-block mb-2">
+                    <i class="fa-solid fa-qrcode mr-1"></i> QR Code Akses HP Siswa
+                </span>
+                <h3 class="text-xl font-black text-white">Scan QR untuk Hubungkan HP Siswa</h3>
+                <p class="text-xs text-slate-400 mt-1">Arahkan kamera HP siswa ke QR Code di bawah untuk langsung membuka web Vercel ini.</p>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl shadow-2xl border-4 border-sky-500/40 flex flex-col items-center mb-4">
+                <div id="qrcodeCanvas"></div>
+                <span id="qrRoomCodeLabel" class="text-xs font-black text-slate-900 mt-3 font-mono">RUANG: SPLTV-GUNAWAN</span>
+            </div>
+
+            <div class="w-full bg-slate-950 p-3 rounded-xl border border-slate-800 text-center text-xs text-slate-400 mb-4">
+                <span class="text-sky-400 font-bold block mb-1">Status Server Cloud Real-Time:</span>
+                <span class="text-emerald-400 font-mono font-bold" id="cloudStatusText"><i class="fa-solid fa-circle-check"></i> Terhubung Lintas Perangkat</span>
+            </div>
+
+            <button onclick="window.closeQrModal()" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl transition">
+                Tutup QR Code
+            </button>
+        </div>
+    </div>
+
+    <!-- AUDIO SYNTH -->
+    <script>
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playTone(freq, type = 'sine', duration = 0.15) {
+            try {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(); osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {}
+        }
+        function playSuccessSound() { playTone(523.25, 'triangle', 0.12); setTimeout(() => playTone(783.99, 'triangle', 0.25), 150); }
+        function playErrorSound() { playTone(220, 'sawtooth', 0.2); setTimeout(() => playTone(196, 'sawtooth', 0.25), 150); }
+        function playFanfareSound() {
+            playTone(523.25, 'sine', 0.15); setTimeout(() => playTone(659.25, 'sine', 0.15), 150);
+            setTimeout(() => playTone(783.99, 'sine', 0.15), 300); setTimeout(() => playTone(1046.50, 'sine', 0.4), 450);
+        }
+    </script>
+
+    <!-- APPLICATION ENGINE -->
+    <script>
+        const PRODUCTS_MASTER = [
+            { id: 'beras', code: 'Br', name: 'Beras/5Kg', key: 65000, desc: 'Kemasan 5 Kg' },
+            { id: 'gula', code: 'Gl', name: 'Gula/Kg', key: 28000, desc: 'Kemasan 1 Kg' },
+            { id: 'kopi', code: 'Kp', name: 'Kopi Instan', key: 4500, desc: 'Per Saset' },
+            { id: 'mie', code: 'Mc', name: 'Mie Cup', key: 6500, desc: 'Per Cup' },
+            { id: 'keripik', code: 'Kr', name: 'Keripik Kentang', key: 2500, desc: 'Bungkus Kecil' },
+            { id: 'sarden', code: 'Sd', name: 'Sarden (Kaleng)', key: 12000, desc: 'Kaleng Sedang' },
+            { id: 'susu', code: 'Su', name: 'Susu UHT (Kotak)', key: 8000, desc: 'Kemasan 1L' },
+            { id: 'minyak', code: 'My', name: 'Minyak Goreng (1L)', key: 18000, desc: 'Pouch 1 Liter' },
+            { id: 'air', code: 'Am', name: 'Air Mineral (Botol)', key: 4000, desc: 'Botol 600ml' },
+            { id: 'tisu', code: 'Ts', name: 'Tisu (Pack)', key: 5500, desc: 'Pack 250s' }
+        ];
+
+        const RECEIPTS_DATA = [
+            { id: 1, date: '04-Okt-2026', time: '10:15 WIB', kasir: 'Abdul Karim', pembeli: 'Bu Mugi (Guru)', items: [ { qty: 1, item: 'Beras/5Kg' }, { qty: 2, item: 'Gula/Kg' }, { qty: 5, item: 'Kopi Instan' }, { qty: 2, item: 'Mie Cup' } ], total: 156500 },
+            { id: 2, date: '04-Okt-2026', time: '10:30 WIB', kasir: 'Cahyo Prasetyo', pembeli: 'Pak Sugeng (Guru)', items: [ { qty: 2, item: 'Beras/5Kg' }, { qty: 1, item: 'Gula/Kg' }, { qty: 3, item: 'Kopi Instan' }, { qty: 4, item: 'Keripik Kentang' } ], total: 181500 },
+            { id: 3, date: '04-Okt-2026', time: '10:45 WIB', kasir: 'Abdul Karim', pembeli: 'Pak Dayat (Guru)', items: [ { qty: 1, item: 'Beras/5Kg' }, { qty: 3, item: 'Gula/Kg' }, { qty: 2, item: 'Kopi Instan' } ], total: 158000 },
+            { id: 4, date: '04-Okt-2026', time: '11:00 WIB', kasir: 'Cahyo Prasetyo', pembeli: 'Bu Mala (Guru)', items: [ { qty: 2, item: 'Beras/5Kg' }, { qty: 6, item: 'Gula/Kg' }, { qty: 4, item: 'Kopi Instan' } ], total: 316000 },
+            { id: 5, date: '04-Okt-2026', time: '11:15 WIB', kasir: 'Abdul Karim', pembeli: 'Pak Gunawan (Guru)', items: [ { qty: 3, item: 'Mie Cup' }, { qty: 5, item: 'Keripik Kentang' } ], total: 32000 },
+            { id: 6, date: '05-Okt-2026', time: '11:30 WIB', kasir: 'Abdul Karim', pembeli: 'Bu Siti Hadijah (Guru)', items: [ { qty: 2, item: 'Minyak Goreng (1L)' }, { qty: 3, item: 'Air Mineral' }, { qty: 1, item: 'Tisu' }, { qty: 1, item: 'Sarden' } ], total: 65500 },
+            { id: 7, date: '05-Okt-2026', time: '11:45 WIB', kasir: 'Cahyo Prasetyo', pembeli: 'Bu Debby Rahmawati (Guru)', items: [ { qty: 2, item: 'Air Mineral' }, { qty: 3, item: 'Tisu' }, { qty: 2, item: 'Gula/Kg' } ], total: 80500 },
+            { id: 8, date: '05-Okt-2026', time: '12:00 WIB', kasir: 'Abdul Karim', pembeli: 'Bu Ida Rahmawati (Guru)', items: [ { qty: 1, item: 'Minyak Goreng (1L)' }, { qty: 2, item: 'Tisu' }, { qty: 2, item: 'Kopi Instan' } ], total: 38000 },
+            { id: 9, date: '06-Okt-2026', time: '12:15 WIB', kasir: 'Cahyo Prasetyo', pembeli: 'Pak Rifqi Mughafi (Guru)', items: [ { qty: 2, item: 'Sarden' }, { qty: 3, item: 'Susu UHT' }, { qty: 2, item: 'Gula/Kg' } ], total: 104000 },
+            { id: 10, date: '06-Okt-2026', time: '12:30 WIB', kasir: 'Abdul Karim', pembeli: 'Bu Arnice Maroangi (Guru)', items: [ { qty: 3, item: 'Sarden' }, { qty: 1, item: 'Susu UHT' }, { qty: 4, item: 'Keripik Kentang' } ], total: 54000 }
+        ];
+
+        let currentTab = 'board';
+        let currentRole = 'teacher'; 
+        let roomCode = 'SPLTV-GUNAWAN';
+        let sessionState = { isActive: false, isEnded: false, duration: 45 * 60, startTime: null };
+        let groupsData = {};
+        let mqttClient = null;
+
+        for (let i = 1; i <= 9; i++) {
+            groupsData[i] = { id: i, members: ['', '', '', ''], answers: {}, userTyped: {}, correctCount: 0, lives: 5, isEliminated: false, lastCorrectTime: 0 };
+        }
+
+        // --- PUBLIC WEBSOCKET / MQTT CLOUD SYNC ---
+        function initPublicCloudSync() {
+            try {
+                mqttClient = mqtt.connect('wss://broker.hivemq.com:8884/mqtt', {
+                    clientId: 'spltv_' + Math.random().toString(16).substr(2, 8),
+                    keepalive: 60
+                });
+
+                mqttClient.on('connect', () => {
+                    const dot = document.getElementById('roomStatusDot');
+                    if (dot) dot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
+                    subscribeRoomTopics();
+                });
+
+                mqttClient.on('message', (topic, message) => {
+                    try {
+                        const payload = JSON.parse(message.toString());
+                        if (topic.endsWith('/session')) {
+                            sessionState = payload;
+                            renderCurrentView();
+                        } else if (topic.includes('/group/')) {
+                            const gId = payload.id;
+                            if (gId && groupsData[gId]) {
+                                groupsData[gId] = payload;
+                                renderCurrentView();
+                            }
+                        }
+                    } catch(e) {}
+                });
+            } catch(e) {}
+        }
+
+        function subscribeRoomTopics() {
+            if (!mqttClient || !mqttClient.connected) return;
+            mqttClient.subscribe(`spltv_smk1/${roomCode}/session`);
+            mqttClient.subscribe(`spltv_smk1/${roomCode}/group/+`);
+        }
+
+        function broadcastSessionState() {
+            if (mqttClient && mqttClient.connected) {
+                mqttClient.publish(`spltv_smk1/${roomCode}/session`, JSON.stringify(sessionState), { retain: true });
+            }
+        }
+
+        function broadcastGroupData(grp) {
+            if (mqttClient && mqttClient.connected) {
+                mqttClient.publish(`spltv_smk1/${roomCode}/group/${grp.id}`, JSON.stringify(grp), { retain: true });
+            }
+        }
+
+        window.changeRoomCode = function(newCode) {
+            if (!newCode) return;
+            roomCode = newCode.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+            document.getElementById('roomCodeInput').value = roomCode;
+            subscribeRoomTopics();
+            broadcastSessionState();
+        }
+
+        window.switchTab = function(tabName) {
+            currentTab = tabName;
+            ['board', 'leaderboard', 'receipts', 'gradebook'].forEach(t => {
+                const el = document.getElementById(`tab-${t}`);
+                const icon = document.getElementById(`navIcon-${t}`);
+                if (el) el.classList.toggle('hidden', t !== tabName);
+                if (icon) {
+                    if (t === tabName) icon.className = "w-10 h-10 rounded-xl bg-sky-600 text-white flex items-center justify-center text-lg transition shadow-lg shadow-sky-600/30";
+                    else icon.className = "w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 group-hover:text-white flex items-center justify-center text-lg transition";
+                }
+            });
+            if (tabName === 'receipts') renderReceiptsTab();
+            renderCurrentView();
+        }
+
+        window.switchUserRole = function(roleVal) {
+            currentRole = roleVal;
+            renderCurrentView();
+        }
+
+        function getActiveGroupNumber() {
+            if (currentRole.startsWith('student_')) return parseInt(currentRole.split('_')[1], 10);
+            return 1;
+        }
+
+        function evaluateGroupData(grp) {
+            let count = 0;
+            PRODUCTS_MASTER.forEach(p => { if (grp.answers && grp.answers[p.id] === p.key) count++; });
+            grp.correctCount = count;
+        }
+
+        window.saveGroupMembers = function() {
+            const gNum = getActiveGroupNumber();
+            const grp = groupsData[gNum];
+            for (let i = 0; i < 4; i++) {
+                const inputEl = document.getElementById(`member${i}`);
+                if (inputEl) grp.members[i] = inputEl.value.trim();
+            }
+            broadcastGroupData(grp);
+        }
+
+        window.handleDraftTyping = function(productId, inputEl) {
+            const gNum = getActiveGroupNumber();
+            const grp = groupsData[gNum];
+            const cleanStr = String(inputEl.value).replace(/[^0-9]/g, '');
+            const rawVal = cleanStr ? parseInt(cleanStr, 10) : 0;
+            if (!grp.userTyped) grp.userTyped = {};
+            grp.userTyped[productId] = rawVal;
+            inputEl.value = rawVal ? rawVal.toLocaleString('id-ID') : '';
+        }
+
+        window.verifySingleProduct = function(productId) {
+            const gNum = getActiveGroupNumber();
+            const grp = groupsData[gNum];
+            if (!sessionState.isActive || sessionState.isEnded || grp.isEliminated) return;
+
+            const typedVal = grp.userTyped[productId] || 0;
+            const targetProd = PRODUCTS_MASTER.find(p => p.id === productId);
+
+            if (!typedVal) return;
+
+            if (typedVal === targetProd.key) {
+                grp.answers[productId] = typedVal;
+                grp.lastCorrectTime = Date.now();
+                playSuccessSound();
+                evaluateGroupData(grp);
+                if (grp.correctCount === 10) confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+            } else {
+                playErrorSound();
+                grp.lives = Math.max(0, grp.lives - 1);
+                if (grp.lives === 0) grp.isEliminated = true;
+            }
+            broadcastGroupData(grp);
+            renderCurrentView();
+        }
+
+        function renderCurrentView() {
+            const isTeacher = currentRole === 'teacher';
+            const gNum = getActiveGroupNumber();
+            const grp = groupsData[gNum];
+
+            // Teacher Controller visibility
+            const ctrlCard = document.getElementById('teacherControlCard');
+            if (ctrlCard) ctrlCard.style.display = isTeacher ? 'flex' : 'none';
+
+            // Start/End Session Buttons
+            const startBtn = document.getElementById('startSessionBtn');
+            const endBtn = document.getElementById('endSessionBtn');
+            if (sessionState.isActive) {
+                if (startBtn) startBtn.classList.add('hidden');
+                if (endBtn) endBtn.classList.remove('hidden');
+            } else {
+                if (startBtn) startBtn.classList.remove('hidden');
+                if (endBtn) endBtn.classList.add('hidden');
+            }
+
+            // Header Group Title
+            document.getElementById('activeGroupDisplayLabel').innerText = isTeacher ? `Papan Kerja (Mode Guru Overview Kelompok ${gNum})` : `Papan Kerja Siswa`;
+            document.getElementById('activeGroupNameTitle').innerText = `Kelompok ${gNum}`;
+
+            // Member Inputs
+            for (let i = 0; i < 4; i++) {
+                const el = document.getElementById(`member${i}`);
+                if (el) {
+                    el.value = grp.members?.[i] || '';
+                    el.disabled = !sessionState.isActive || sessionState.isEnded || grp.isEliminated || isTeacher;
+                }
+            }
+
+            // Hearts & Progress
+            evaluateGroupData(grp);
+            let hHtml = '';
+            for (let h = 1; h <= 5; h++) {
+                hHtml += (h <= grp.lives) ? `<i class="fa-solid fa-heart text-rose-500"></i>` : `<i class="fa-regular fa-heart text-slate-700"></i>`;
+            }
+            document.getElementById('livesHeartsDisplay').innerHTML = hHtml;
+
+            const percent = Math.round(((grp.correctCount || 0) / 10) * 100);
+            document.getElementById('solvedCountText').innerText = grp.correctCount || 0;
+            document.getElementById('progressPercentText').innerText = `${percent}%`;
+            document.getElementById('progressCircle').setAttribute('stroke-dasharray', `${percent}, 100`);
+
+            // Product Cards Grid
+            const gridContainer = document.getElementById('productsGrid');
+            if (gridContainer) {
+                gridContainer.innerHTML = PRODUCTS_MASTER.map(prod => {
+                    const verifiedAns = grp.answers?.[prod.id];
+                    const isCorrect = verifiedAns === prod.key;
+                    const currentTyped = grp.userTyped?.[prod.id] !== undefined ? grp.userTyped[prod.id] : (verifiedAns || '');
+                    const isLocked = !sessionState.isActive || sessionState.isEnded || grp.isEliminated || isCorrect || isTeacher;
+
+                    return `
+                        <div class="border ${isCorrect ? 'border-emerald-500/50 bg-emerald-950/20' : 'border-slate-800 bg-slate-950/80'} rounded-2xl p-3.5 flex flex-col justify-between">
+                            <div>
+                                <div class="flex items-center justify-between mb-2">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-7 h-7 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-sky-400 font-bold text-xs">${prod.code}</span>
+                                        <div>
+                                            <h4 class="text-xs font-bold text-white">${prod.name}</h4>
+                                            <span class="text-[10px] text-slate-500">${prod.desc}</span>
+                                        </div>
+                                    </div>
+                                    ${isCorrect ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400">Benar</span>' : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-400">Pending</span>'}
+                                </div>
+                                <div class="mt-2 flex items-center gap-1.5">
+                                    <div class="relative flex-1">
+                                        <span class="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-500">Rp</span>
+                                        <input type="text" ${isLocked ? 'disabled' : ''} value="${currentTyped ? Number(currentTyped).toLocaleString('id-ID') : ''}" oninput="window.handleDraftTyping('${prod.id}', this)" placeholder="0" class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-7 pr-2 py-1.5 text-xs font-bold text-white focus:outline-none disabled:opacity-50">
+                                    </div>
+                                    <button ${isLocked ? 'disabled' : ''} onclick="window.verifySingleProduct('${prod.id}')" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 disabled:bg-slate-800 text-white font-bold text-xs rounded-xl transition">Cek</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // Banner Warning
+            const banner = document.getElementById('sessionBannerAlert');
+            if (grp.isEliminated) {
+                banner.classList.remove('hidden'); banner.className = 'mb-6 p-4 rounded-2xl bg-rose-950/80 border border-rose-500 text-rose-200 flex items-center justify-between text-xs animate-bounce';
+                document.getElementById('sessionAlertTitle').innerText = 'KELOMPOK TERELIMINASI!';
+                document.getElementById('sessionAlertDesc').innerText = 'Kelompok ini telah kehabisan 5 nyawa.';
+            } else if (grp.lives <= 2 && sessionState.isActive) {
+                banner.classList.remove('hidden'); banner.className = 'mb-6 p-4 rounded-2xl bg-amber-500/20 border border-amber-500 text-amber-200 flex items-center justify-between text-xs';
+                document.getElementById('sessionAlertTitle').innerText = `PERINGATAN! Sisa Nyawa: ${grp.lives}`;
+                document.getElementById('sessionAlertDesc').innerText = 'Berhati-hatilah dan hitung ulang sebelum menekan tombol Cek.';
+            } else if (!sessionState.isActive && !sessionState.isEnded) {
+                banner.classList.remove('hidden'); banner.className = 'mb-6 p-4 rounded-2xl bg-slate-900 border border-slate-800 text-slate-300 flex items-center justify-between text-xs';
+                document.getElementById('sessionAlertTitle').innerText = 'Sesi Pembelajaran Belum Dimulai';
+                document.getElementById('sessionAlertDesc').innerText = 'Pak Gunawan belum mengaktifkan waktu 45 menit.';
+            } else banner.classList.add('hidden');
+
+            renderLeaderboardTable();
+        }
+
+        function renderLeaderboardTable() {
+            document.getElementById('productLegendContainer').innerHTML = PRODUCTS_MASTER.map(p => `
+                <div class="flex items-center gap-1.5 bg-slate-900 border border-slate-800 px-2 py-1 rounded-lg">
+                    <span class="w-5 h-5 rounded bg-sky-500/20 text-sky-400 border border-sky-500/30 flex items-center justify-center font-bold text-[10px]">${p.code}</span>
+                    <span class="text-slate-300 font-medium truncate">${p.name}</span>
+                </div>
+            `).join('');
+
+            const ranked = Object.values(groupsData).sort((a, b) => {
+                if (a.isEliminated !== b.isEliminated) return a.isEliminated ? 1 : -1;
+                if (b.correctCount !== a.correctCount) return b.correctCount - a.correctCount;
+                if (a.lastCorrectTime && b.lastCorrectTime) return a.lastCorrectTime - b.lastCorrectTime;
+                return a.id - b.id;
+            });
+
+            document.getElementById('leaderboardTableBody').innerHTML = ranked.map((grp, idx) => {
+                const rank = idx + 1;
+                let rankBadge = `<span class="font-bold text-slate-400">#${rank}</span>`;
+                let rowBg = 'hover:bg-slate-800/40';
+
+                if (grp.isEliminated) {
+                    rowBg = 'bg-rose-950/20';
+                    rankBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30">OUT</span>`;
+                } else if (rank === 1) {
+                    rankBadge = `<span class="w-7 h-7 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center font-black text-sm"><i class="fa-solid fa-crown"></i></span>`;
+                    rowBg = 'bg-amber-500/5';
+                }
+
+                const ketua = grp.members?.[0] || 'Belum diisi';
+                const percent = Math.round(((grp.correctCount || 0) / 10) * 100);
+
+                let heartsHtml = '';
+                for (let h = 1; h <= 5; h++) {
+                    heartsHtml += (h <= grp.lives) ? `<i class="fa-solid fa-heart text-rose-500 text-[10px]"></i>` : `<i class="fa-regular fa-heart text-slate-700 text-[10px]"></i>`;
+                }
+
+                const chips = PRODUCTS_MASTER.map(p => {
+                    const isOk = grp.answers?.[p.id] === p.key;
+                    return `<span class="w-6 h-5 rounded flex items-center justify-center text-[10px] font-bold ${isOk ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-slate-950 text-slate-600 border border-slate-800'}">${p.code}</span>`;
+                }).join('');
+
+                return `
+                    <tr class="${rowBg} transition">
+                        <td class="py-3 px-2 font-bold">${rankBadge}</td>
+                        <td class="py-3">
+                            <div class="font-bold text-sm flex items-center gap-2 ${grp.isEliminated ? 'line-through text-rose-400/80' : 'text-white'}">
+                                Kelompok ${grp.id}
+                                <span class="text-[10px] font-normal px-2 py-0.5 rounded bg-slate-800 text-slate-300">Ketua: ${ketua}</span>
+                            </div>
+                        </td>
+                        <td class="py-3 text-center"><div class="flex items-center justify-center gap-0.5">${heartsHtml}</div></td>
+                        <td class="py-3 text-center font-black text-base text-sky-400">${grp.correctCount || 0}/10</td>
+                        <td class="py-3 text-center font-bold text-slate-300">${percent}%</td>
+                        <td class="py-3"><div class="flex items-center gap-1">${chips}</div></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Timer Loop
+        setInterval(() => {
+            const timerDisplay = document.getElementById('countdownDisplay');
+            if (!timerDisplay) return;
+            let remaining = 45 * 60;
+            if (sessionState.isActive && sessionState.startTime) {
+                const elapsed = Math.floor((Date.now() - sessionState.startTime) / 1000);
+                remaining = Math.max(0, sessionState.duration - elapsed);
+            } else if (sessionState.isEnded) remaining = 0;
+
+            const m = Math.floor(remaining / 60).toString().padStart(2, '0');
+            const s = Math.floor(remaining % 60).toString().padStart(2, '0');
+            timerDisplay.innerText = `${m}:${s}`;
+        }, 1000);
+
+        window.toggleSessionStart = function() {
+            sessionState.isActive = true; sessionState.isEnded = false;
+            sessionState.startTime = Date.now();
+            broadcastSessionState();
+            renderCurrentView();
+        }
+
+        window.initiate2StepEndSession = function() {
+            document.getElementById('verifyStep1').classList.remove('hidden');
+            document.getElementById('verifyStep2').classList.add('hidden');
+            document.getElementById('verifyModal').classList.remove('hidden');
+        }
+
+        window.goToVerifyStep2 = function() {
+            document.getElementById('verifyStep1').classList.add('hidden');
+            document.getElementById('verifyStep2').classList.remove('hidden');
+        }
+
+        window.confirmFinalEndSession = function() {
+            if (document.getElementById('teacherPasscodeCode').value === '1234') {
+                sessionState.isActive = false; sessionState.isEnded = true;
+                broadcastSessionState();
+                window.closeVerifyModal(); renderCurrentView(); window.triggerTop3PodiumModal();
+            } else {
+                document.getElementById('passcodeErrorMsg').classList.remove('hidden');
+            }
+        }
+
+        window.closeVerifyModal = () => document.getElementById('verifyModal').classList.add('hidden');
+
+        window.resetAllData = function() {
+            sessionState = { isActive: false, isEnded: false, duration: 45 * 60, startTime: null };
+            broadcastSessionState();
+            for (let i = 1; i <= 9; i++) {
+                groupsData[i] = { id: i, members: ['', '', '', ''], answers: {}, userTyped: {}, correctCount: 0, lives: 5, isEliminated: false, lastCorrectTime: 0 };
+                broadcastGroupData(groupsData[i]);
+            }
+            renderCurrentView();
+        }
+
+        window.triggerTop3PodiumModal = function() {
+            playFanfareSound(); confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 } });
+            const ranked = Object.values(groupsData).sort((a,b) => b.correctCount - a.correctCount);
+
+            function card(grp, rank) {
+                if (!grp) return '';
+                const h = rank === 1 ? 'h-36 podium-1 border-t-2 border-amber-300' : (rank === 2 ? 'h-28 podium-2 border-t-2 border-slate-300' : 'h-20 podium-3 border-t-2 border-amber-600');
+                return `
+                    <div class="flex flex-col items-center w-1/3 order-${rank === 1 ? 2 : (rank === 2 ? 1 : 3)}">
+                        ${rank === 1 ? '<i class="fa-solid fa-crown text-amber-400 text-3xl mb-2 animate-bounce"></i>' : ''}
+                        <div class="text-center mb-2">
+                            <span class="font-black text-white text-base block">Kelompok ${grp.id}</span>
+                            <span class="text-xs font-bold text-emerald-400 block">${grp.correctCount || 0}/10 Benar</span>
+                        </div>
+                        <div class="w-full ${h} rounded-t-2xl flex items-center justify-center font-black text-3xl text-slate-950">${rank}</div>
+                    </div>
+                `;
+            }
+            document.getElementById('podiumDisplayContainer').innerHTML = card(ranked[1], 2) + card(ranked[0], 1) + card(ranked[2], 3);
+            document.getElementById('podiumModal').classList.remove('hidden');
+        }
+
+        window.closePodiumModal = () => document.getElementById('podiumModal').classList.add('hidden');
+
+        window.openQrModal = function() {
+            document.getElementById('qrModal').classList.remove('hidden');
+            const container = document.getElementById('qrcodeCanvas'); container.innerHTML = '';
+            let fullUrl = window.location.href.split('?')[0] + `?room=${roomCode}`;
+            document.getElementById('qrRoomCodeLabel').innerText = `KODE RUANG: ${roomCode}`;
+            new QRCode(container, { text: fullUrl, width: 180, height: 180, colorDark: "#0284c7", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H });
+        }
+        window.closeQrModal = () => document.getElementById('qrModal').classList.add('hidden');
+
+        function renderReceiptsTab() {
+            document.getElementById('receiptButtonsGrid').innerHTML = RECEIPTS_DATA.map(r => `
+                <button onclick="window.showReceiptDetail(${r.id})" class="px-3 py-2 rounded-xl text-xs font-bold bg-slate-900 border border-slate-800 hover:border-sky-500 text-slate-300">Struk ${r.id}</button>
+            `).join('');
+            window.showReceiptDetail(1);
+        }
+
+        window.showReceiptDetail = function(id) {
+            const r = RECEIPTS_DATA.find(x => x.id === id);
+            document.getElementById('receiptDisplayPaper').innerHTML = `
+                <div class="text-center border-b pb-2 mb-2"><h2 class="font-bold">RAYA MART SMK NEGERI 1 SAMPIT</h2></div>
+                <div class="text-xs space-y-1 mb-2"><div>Tanggal: ${r.date}</div><div>Pembeli: ${r.pembeli}</div></div>
+                <table class="w-full text-xs mb-2"><tbody>${r.items.map(i => `<tr><td>${i.qty}x</td><td>${i.item}</td></tr>`).join('')}</tbody></table>
+                <div class="flex justify-between font-bold border-t pt-2"><span>TOTAL</span><span>Rp${r.total.toLocaleString('id-ID')}</span></div>
+            `;
+        }
+
+        window.toggleAnswerKeyDrawer = function() {
+            const drawer = document.getElementById('answerKeyDrawer');
+            drawer.classList.toggle('hidden');
+            if (!drawer.classList.contains('hidden')) {
+                document.getElementById('answerKeyGrid').innerHTML = PRODUCTS_MASTER.map(p => `
+                    <div class="bg-slate-900 p-2 rounded border border-slate-800">
+                        <span class="text-sky-400 font-bold block">${p.code} - ${p.name}</span>
+                        <span class="text-emerald-400 font-bold text-sm">Rp${p.key.toLocaleString('id-ID')}</span>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function checkUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            const rParam = params.get('room');
+            const roleParam = params.get('role');
+            if (rParam) {
+                roomCode = rParam.toUpperCase();
+                const roomInput = document.getElementById('roomCodeInput');
+                if (roomInput) roomInput.value = roomCode;
+            }
+            if (roleParam) {
+                currentRole = roleParam;
+                const selector = document.getElementById('roleSelector');
+                if (selector) selector.value = roleParam;
+            }
+        }
+
+        window.addEventListener('load', () => {
+            checkUrlParams();
+            initPublicCloudSync();
+            renderCurrentView();
+        });
+    </script>
+</body>
+</html>
